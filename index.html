@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>sig.golf · how the signature changed</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Every sig.golf full-track record, drawn as the structure of the signature.">
+<style>
+:root{
+  color-scheme:light;
+  --ink:#1d1d1f; --muted:#6e6e73; --soft:#86868b; --rule:#e8e8ed; --tree:#d2d2d7; --grid:#e3e3e8; --wash:#f5f5f7;
+  --accent:#0071e3;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#fff;color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden}
+#fit{transform-origin:0 0;width:1600px}
+#stage{position:relative;width:1600px;height:900px;overflow:hidden;background:#fff}
+svg text{font-family:var(--sans)}
+
+#left{position:absolute;left:88px;top:72px;width:500px}
+.brand{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.brand span{color:var(--soft);font-weight:400;margin-left:.5em}
+.fade{will-change:opacity}
+#count{margin-top:96px;font-size:15px;color:var(--soft);font-variant-numeric:tabular-nums}
+#title{margin:10px 0 0;font-size:44px;line-height:1.08;font-weight:600;letter-spacing:-.025em}
+#desc{margin:18px 0 0;font-size:19px;line-height:1.45;color:var(--muted);letter-spacing:-.005em}
+#who{margin-top:16px;font-size:14px;color:var(--soft)}
+
+#stats{position:absolute;left:88px;top:500px;width:500px;display:grid;grid-template-columns:1fr 1fr 1.3fr;column-gap:24px}
+.st .l{font-size:13px;color:var(--soft)}
+.st .v{margin-top:6px;font-size:28px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.st .d{margin-top:4px;font-size:13px;color:var(--accent);height:16px;font-variant-numeric:tabular-nums}
+
+#tl{position:absolute;left:88px;top:648px;width:500px}
+#tl svg{display:block;overflow:visible}
+#tl .hit{cursor:pointer}
+
+#diagram{position:absolute;left:640px;top:40px;width:940px;height:712px}
+
+#ctrl{position:absolute;left:88px;top:816px;display:flex;gap:10px}
+#ctrl button{all:unset;cursor:pointer;width:34px;height:34px;border-radius:50%;background:var(--wash);display:grid;place-items:center;color:var(--ink)}
+#ctrl button:hover{background:var(--rule)}
+#ctrl svg{width:14px;height:14px}
+body.cap #ctrl{display:none}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div id="left">
+    <div class="brand">sig.golf<span>Full track</span></div>
+    <div id="count" class="fade"></div>
+    <h1 id="title" class="fade"></h1>
+    <p id="desc" class="fade"></p>
+    <div id="who" class="fade"></div>
+  </div>
+  <div id="stats">
+    <div class="st"><div class="l">Size</div><div class="v" id="vS"></div><div class="d" id="dS"></div></div>
+    <div class="st"><div class="l">Verify cost</div><div class="v" id="vC"></div><div class="d" id="dC"></div></div>
+    <div class="st"><div class="l">Score</div><div class="v" id="vX"></div><div class="d" id="dX"></div></div>
+  </div>
+  <div id="tl"><svg id="chart" width="500" height="120"></svg></div>
+  <svg id="diagram" viewBox="0 0 940 712"></svg>
+  <div id="ctrl">
+    <button id="bprev" aria-label="Previous"><svg viewBox="0 0 14 14"><path d="M9 2 4 7l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button id="bplay" aria-label="Pause"></button>
+    <button id="bnext" aria-label="Next"><svg viewBox="0 0 14 14"><path d="m5 2 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+</div></div>
+<script src="struct.js"></script>
+<script>
+"use strict";
+const NS='http://www.w3.org/2000/svg';
+const INK='var(--ink)', MUT='var(--muted)', SOFT='var(--soft)', TREE='var(--tree)', ACC='var(--accent)';
+const START=1600, PERIOD=4000, TRANS=1400, HOLD_END=5000;
+const N=ERAS.length, TOTAL=START+PERIOD*(N-1)+HOLD_END;
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const day=e=>MON[+e.date.slice(5,7)-1]+' '+(+e.date.slice(8,10));
+
+// plain-language title and summary for each record
+const COPY=[
+  ['The starting point','A SPHINCS+-style design: five layers of Merkle trees linked by WOTS+C one-time keys, with one PORS tree at the bottom.'],
+  ['A smaller counter field','The five signing counters are capped and packed into 13 bytes instead of 14.'],
+  ['Tighter counters','The counters fit in 12 bytes, and the PORS check does less address setup.'],
+  ['Counters left out','The verifier recomputes the counters itself, so they are no longer sent.'],
+  ['Two digests per try','Each randomizer now yields two digests. Cheaper grinding lets the PORS proof drop one node.'],
+  ['Four layers and a forest','A new layout: four tree layers (12, 7, 6, 6) and seven small PORS trees at the bottom. The verifier caches part of the top tree.'],
+  ['Filtered digests','The verifier only accepts digests with six zero bits. In exchange, the proof is capped at 121 nodes.'],
+  ['Cap down to 119','A tighter analysis of the digest filter lowers the proof cap to 119 nodes.'],
+  ['Cap down to 118','One node fewer, paid for by retuning the one-time keys.'],
+  ['The whole top tree, cached','The verifier keeps all 8,190 nodes of the top tree, which frees room to retune the one-time keys.'],
+  ['54 chains at the top','The top one-time key goes from 58 chains to 54 by mixing chain lengths. 64 bytes saved.'],
+  ['Cap down to 115','A three-bit digest filter and a tighter security budget lower the proof cap to 115 nodes.'],
+  ['Both together','The 115-node cap combined with the 54-chain top key.'],
+  ['A forest of tiny keys','The PORS forest is replaced by nine small trees whose leaves are one-time keys of seven short chains.'],
+  ['Six chains per leaf','Each leaf key now has six longer chains instead of seven, so each tree sends one value less.'],
+  ['One node fewer at the top','One node of the top path is no longer sent. The verifier finds it by trying 512 candidates against the public key.'],
+  ['Paired trees','Eight of the nine bottom trees share a branch bit in pairs, saving one path node per pair.'],
+  ['A leaner check','The verifier is reorganised and the witness trimmed by 32 bytes. The signature is unchanged.'],
+  ['Lower trees, reordered','The same reordering, applied to the lower trees. Verify cost drops from 7,027 to 7,010.'],
+  ['Top tree, reordered','The top tree gets the same treatment. Verify cost drops to 6,997.'],
+  ['A smaller top window','The top tree’s witness window shrinks by 96 bytes, which saves one cycle.'],
+  ['Paired chain blocks','Odd and even chains of the lower keys share witness blocks. The witness shrinks by 1.7 KB and the check gets 6 cycles cheaper.'],
+];
+ERAS.forEach((e,i)=>{e.title=COPY[i][0];e.text=COPY[i][1]});
+
+// deterministic hash-based RNG
+function rnd(...k){let h=2166136261;for(const x of k.join('|')){h^=x.charCodeAt(0);h=Math.imul(h,16777619)}
+  h^=h>>>13;h=Math.imul(h,0x5bd1e995);h^=h>>>15;return (h>>>0)/4294967296}
+
+// ---------- geometry helpers ----------
+function tx(cx,W,h,d,j){const w=W*d/h;return cx-w/2+(j+.5)*w/Math.pow(2,d)}
+const f1=v=>v.toFixed(1);
+const PATHS={
+  // binary tree drawn as hairlines down to depth D, then a fan to the leaf line
+  skel(a){
+    const h=Math.round(a.h), D=Math.min(h,Math.round(a.D)); let s='';
+    for(let d=1;d<=D;d++){const n=1<<d,ya=f1(a.top+(d-1)*a.U),yb=f1(a.top+d*a.U);
+      for(let j=0;j<n;j++)s+=`M${f1(tx(a.cx,a.W,h,d-1,j>>1))},${ya}L${f1(tx(a.cx,a.W,h,d,j))},${yb}`}
+    if(h>D){const n=1<<D,y=f1(a.top+D*a.U),base=f1(a.top+h*a.U),span=a.W/n;
+      for(let j=0;j<n;j++){const x=f1(tx(a.cx,a.W,h,D,j));
+        s+=`M${x},${y}L${f1(a.cx-a.W/2+(j+.5)*span)},${base}`}}
+    return s},
+  // brace under a block (dir 1: tip down) or over a row (dir -1: tip up)
+  brace(a){const s=a.dir||1,q=4*s,m=(a.x1+a.x2)/2,y=a.y;
+    return `M${a.x1},${y-q}Q${a.x1},${y} ${a.x1+5},${y}H${m-5}Q${m},${y} ${m},${y+q}Q${m},${y} ${m+5},${y}H${a.x2-5}Q${a.x2},${y} ${a.x2},${y-q}`},
+  meas(a){return `M${a.x-3},${a.y1}H${a.x+3}M${a.x},${a.y1}V${a.y2}M${a.x-3},${a.y2}H${a.x+3}`},
+  curve(a){const m=(a.y1+a.y2)/2;return `M${a.x1},${a.y1}C${a.x1},${m} ${a.x2},${m} ${a.x2},${a.y2}`},
+  pair(a){return `M${a.x1},${a.y-a.h}V${a.y}H${a.x2}V${a.y-a.h}`},
+};
+
+// ---------- scene construction ----------
+function Scene(){this.m=new Map()}
+Scene.prototype.add=function(k,t,a,st,s){if(t==='text')k=k+'|'+s;const o=a.o===undefined?1:a.o;delete a.o;
+  this.m.set(k,{t,a,st:st||{},s:s||'',o})};
+
+const TX=232, U_HT=8.4, GAP=36, CX0=420, DX=6.6, DY=4.4, CEN=470;
+const IT={'font-style':'italic'};
+
+function buildScene(e){
+  const S=new Scene();
+  const foc=new Set(e.focus.filter(f=>f!=='all'));
+  let y=40;
+  S.add('pk','circ',{cx:TX,cy:12,r:3.2},{fill:INK});
+  S.add('pkl','text',{x:TX+11,y:16.5},{fill:MUT,'font-size':13},'public key');
+  S.add('pkln','line',{x1:TX,y1:12,x2:TX,y2:y},{stroke:TREE,'stroke-width':1});
+  let prev=null;
+  e.layers.forEach((L,li)=>{
+    const h=L.h, W=Math.min(296,21*h+40), top=y, base=y+h*U_HT, kk='L'+li, isTop=li===0;
+    const hi=isTop?foc.has('top'):foc.has('lower'), dc=hi?ACC:INK;
+    if(prev)S.add(kk+'con','curve',{x1:prev[0],y1:prev[1],x2:TX,y2:top},{fill:'none',stroke:TREE,'stroke-width':1});
+    if(L.cached){
+      const cb=top+L.cached*U_HT, cw=W*L.cached/h;
+      S.add(kk+'cache','poly',{x0:TX,y0:top,x1:TX-cw/2,y1:cb,x2:TX+cw/2,y2:cb},{fill:'var(--wash)',stroke:'none'});
+      S.add(kk+'cachel','text',{x:TX-W/2,y:base+17},{fill:SOFT,'font-size':12,...IT},
+        L.cached===h?'whole tree cached by the verifier':'top '+L.cached+' levels cached by the verifier');
+    }
+    S.add(kk+'sk','skel',{cx:TX,top,W,U:U_HT,h,D:5},{fill:'none',stroke:TREE,'stroke-width':.6});
+    const mx=TX-W/2-18;
+    S.add(kk+'m','meas',{x:mx,y1:top,y2:base},{fill:'none',stroke:SOFT,'stroke-width':.8});
+    S.add(kk+'ml','text',{x:mx-8,y:(top+base)/2+4.5},{fill:hi?ACC:MUT,'font-size':13,'text-anchor':'end',...IT},'h = '+h);
+    // authentication path to a fixed leaf
+    const leaf=Math.floor(rnd('leaf',li)*Math.pow(2,h));
+    let px=TX,py=top;
+    for(let d=1;d<=h;d++){
+      const j=leaf>>(h-d), x=tx(TX,W,h,d,j), yy=top+d*U_HT, k=h-d;
+      S.add(kk+'p'+k,'line',{x1:px,y1:py,x2:x,y2:yy},{stroke:INK,'stroke-width':1.05});
+      const sx=tx(TX,W,h,d,j^1), elided=e.i>=15&&isTop&&d===1;
+      S.add(kk+'s'+k,'circ',{cx:sx,cy:yy,r:2.1},elided?{fill:'#fff',stroke:dc,'stroke-width':1}:{fill:dc});
+      px=x;py=yy;
+    }
+    S.add(kk+'leaf','circ',{cx:px,cy:py,r:2.7},{fill:INK});
+    // WOTS+C key: one dotted column per chain, the signed value as a dot
+    const n=L.chains.length, mst=Math.max(...L.chains), xe=CX0+(n-1)*DX;
+    S.add(kk+'lc','line',{x1:px+5,y1:base,x2:CX0-9,y2:base},{stroke:TREE,'stroke-width':1,'stroke-dasharray':'1 3'});
+    L.chains.forEach((st,c)=>{
+      const x=CX0+c*DX, dig=Math.floor(rnd('dig',li,c)*(st+1)), ck=L.checksum&&c===n-1;
+      S.add(kk+'c'+c,'line',{x1:x,y1:base,x2:x,y2:base-st*DY},{stroke:'var(--grid)','stroke-width':1.5,'stroke-linecap':'round','stroke-dasharray':'0 '+DY});
+      S.add(kk+'r'+c,'circ',{cx:x,cy:base-dig*DY,r:2.05},ck?{fill:'#fff',stroke:dc,'stroke-width':1}:{fill:dc});
+    });
+    if(e.pairedChains&&li>0)for(let c=1;c+1<n;c+=2)
+      S.add(kk+'pr'+c,'pair',{x1:CX0+c*DX,x2:CX0+(c+1)*DX,y:base+5,h:2.5},{fill:'none',stroke:dc,'stroke-width':.9});
+    S.add(kk+'br','brace',{x1:CX0-3,x2:xe+3,y:base+12,dir:1},{fill:'none',stroke:SOFT,'stroke-width':.8});
+    const ws=[...new Set(L.chains)].sort((a,b)=>a-b).map(s=>s+1).join(', ');
+    const ly=base-mst*DY/2;
+    S.add(kk+'nm','text',{x:xe+18,y:ly-3},{fill:hi?ACC:INK,'font-size':12.5,'font-weight':600},'WOTS+C');
+    S.add(kk+'pm','text',{x:xe+18,y:ly+13},{fill:MUT,'font-size':12.5,...IT},'ℓ = '+n+',  w = '+ws);
+    prev=[(CX0+xe)/2,base+16];
+    y=base+GAP;
+  });
+
+  // ---- few-time signature ----
+  const f=e.fts, fhi=foc.has('fts'), dc=fhi?ACC:INK, fy=y-6;
+  const geo={pors:{n:1,W:560,gap:0,U:8.2},bpors:{n:7,W:92,gap:20,U:9.6},wct:{n:9,W:68,gap:17,U:10}}[f.kind];
+  const tot=geo.n*geo.W+(geo.n-1)*geo.gap, x0=CEN-tot/2, ty=geo.n>1?fy+22:fy+8, h=f.h, base=ty+h*geo.U;
+  if(geo.n>1){
+    const xa=x0+geo.W/2, xb=x0+tot-geo.W/2;
+    S.add('fcon','curve',{x1:prev[0],y1:prev[1],x2:CEN,y2:fy+8},{fill:'none',stroke:TREE,'stroke-width':1});
+    S.add('frail','line',{x1:xa,y1:fy+8,x2:xb,y2:fy+8},{stroke:TREE,'stroke-width':1});
+  }else S.add('fcon','curve',{x1:prev[0],y1:prev[1],x2:CEN,y2:ty},{fill:'none',stroke:TREE,'stroke-width':1});
+  const mx=x0-18;
+  S.add('fm','meas',{x:mx,y1:ty,y2:base},{fill:'none',stroke:SOFT,'stroke-width':.8});
+  S.add('fml','text',{x:mx-8,y:(ty+base)/2+4.5},{fill:fhi?ACC:MUT,'font-size':13,'text-anchor':'end',...IT},'h = '+h);
+  let low=base;
+  for(let t=0;t<geo.n;t++){
+    const cx=x0+t*(geo.W+geo.gap)+geo.W/2, W=geo.W, kk='F'+t;
+    if(geo.n>1){
+      S.add(kk+'drop','line',{x1:cx,y1:fy+8,x2:cx,y2:ty},{stroke:TREE,'stroke-width':1});
+      S.add(kk+'tri','poly',{x0:cx,y0:ty,x1:cx-W/2,y1:base,x2:cx+W/2,y2:base},{fill:'none',stroke:TREE,'stroke-width':.9});
+    }else S.add(kk+'sk','skel',{cx,top:ty,W,U:geo.U,h,D:6},{fill:'none',stroke:TREE,'stroke-width':.6});
+    if(f.kind==='bpors')for(let b=1;b<f.buckets;b++){const bx=cx-W/2+b*W/f.buckets;
+      S.add(kk+'bk'+b,'line',{x1:bx,y1:base+2,x2:bx,y2:base+5},{stroke:TREE,'stroke-width':.8})}
+    // opened leaves: pick a spread with few authentication nodes (deterministic)
+    let leaves;
+    if(f.kind==='wct')leaves=[Math.floor(rnd('wl',t)*128)];
+    else{
+      let best=null,bs=1e9;
+      for(let s=0;s<(f.kind==='pors'?400:120);s++){
+        const Ls=[...new Set(Array.from({length:f.open},(_,q)=>Math.floor(rnd('ol',f.kind,t,s,q)*Math.pow(2,h))))];
+        if(Ls.length<f.open)continue;
+        const c=octo(Ls,h).sib.length;if(c<bs){bs=c;best=Ls}
+      }
+      leaves=best;
+    }
+    const o=octo(leaves,h);
+    for(const [d,j] of o.edges)
+      S.add(kk+'e'+d+'_'+j,'line',{x1:tx(cx,W,h,d-1,j>>1),y1:ty+(d-1)*geo.U,x2:tx(cx,W,h,d,j),y2:ty+d*geo.U},{stroke:INK,'stroke-width':1});
+    for(const [d,j] of o.sib){
+      const skip=f.kind==='wct'&&f.paired&&t<8&&t%2===1&&d===1;
+      S.add(kk+'s'+d+'_'+j,'circ',{cx:tx(cx,W,h,d,j),cy:ty+d*geo.U,r:1.9},skip?{fill:'#fff',stroke:dc,'stroke-width':1}:{fill:dc});
+    }
+    for(const l of leaves){
+      const lx=tx(cx,W,h,h,l);
+      if(f.kind==='wct'){
+        const y0=base+9;
+        for(let c=0;c<f.chains;c++){
+          const x=lx-(f.chains-1)*2.9+c*5.8, dig=Math.floor(rnd('fd',t,c)*(f.steps+1));
+          S.add(kk+'cc'+c,'line',{x1:x,y1:y0,x2:x,y2:y0+f.steps*DY},{stroke:'var(--grid)','stroke-width':1.5,'stroke-linecap':'round','stroke-dasharray':'0 '+DY});
+          S.add(kk+'cr'+c,'circ',{cx:x,cy:y0+(f.steps-dig)*DY,r:1.85},{fill:dc});
+        }
+        S.add(kk+'ccon','line',{x1:lx,y1:base+2,x2:lx,y2:base+6},{stroke:TREE,'stroke-width':.9});
+        low=Math.max(low,y0+f.steps*DY);
+      }
+      S.add(kk+'o'+l,'circ',{cx:lx,cy:base,r:2.5},{fill:INK});
+    }
+    if(f.kind==='wct'&&f.paired&&t<8&&t%2===0){
+      const cx2=cx+W+geo.gap, yb=base+9+f.steps*DY+11;
+      S.add('pair'+t,'pair',{x1:cx-W*.25,x2:cx2+W*.25,y:yb,h:4},{fill:'none',stroke:dc,'stroke-width':.9});
+      low=Math.max(low,yb);
+    }
+  }
+  const nm={pors:'PORS+FP',bpors:'BPORS forest',wct:(f.paired?'Paired ':'')+'WOTS-child forest'}[f.kind];
+  const pm={pors:`k = ${f.open},  ≤ ${f.cap} auth nodes`,
+    bpors:`k = 7 trees × 3 openings,  ${f.buckets} buckets,  ≤ ${f.cap} auth nodes`,
+    wct:`k = 9 trees,  child ℓ = ${f.chains}, w = ${f.steps+1}`+(f.paired?',  pairs share a branch bit':'')}[f.kind];
+  S.add('fnm','text',{x:CEN,y:low+30},{fill:fhi?ACC:INK,'font-size':12.5,'font-weight':600,'text-anchor':'middle'},nm);
+  S.add('fpm','text',{x:CEN,y:low+47},{fill:MUT,'font-size':12.5,'text-anchor':'middle',...IT},pm);
+  return S;
+}
+
+// octopus: union of root-to-leaf paths and its sibling set
+function octo(leaves,h){
+  const inU=new Set(),edges=[];
+  for(const l of leaves)for(let d=h;d>=1;d--){const j=l>>(h-d),k=d+'_'+j;if(inU.has(k))break;inU.add(k);edges.push([d,j])}
+  const sib=[];for(const [d,j] of edges)if(!inU.has(d+'_'+(j^1)))sib.push([d,j^1]);
+  return {edges,sib};
+}
+
+// ---------- renderer: keyed elements, eased geometry, staggered fades ----------
+const svg=document.getElementById('diagram');
+const gBack=document.createElementNS(NS,'g'), gFront=document.createElementNS(NS,'g');
+svg.append(gBack,gFront);
+const DOM=new Map();
+function el(k,it){
+  let d=DOM.get(k);
+  if(d&&d._t===it.t)return d;
+  const tag={line:'line',circ:'circle',poly:'polygon',text:'text'}[it.t]||'path';
+  d=document.createElementNS(NS,tag);d._t=it.t;d._st='';
+  if(it.t==='text')d.textContent=it.s;
+  (it.t==='poly'?gBack:gFront).appendChild(d);
+  DOM.set(k,d);return d;
+}
+function setStyle(d,st){const j=JSON.stringify(st);if(d._st===j)return;d._st=j;for(const [a,v] of Object.entries(st))d.setAttribute(a,v)}
+function applyGeom(d,t,a){
+  if(t==='line'){d.setAttribute('x1',a.x1);d.setAttribute('y1',a.y1);d.setAttribute('x2',a.x2);d.setAttribute('y2',a.y2)}
+  else if(t==='circ'){d.setAttribute('cx',a.cx);d.setAttribute('cy',a.cy);d.setAttribute('r',Math.max(0,a.r))}
+  else if(t==='poly')d.setAttribute('points',`${a.x0},${a.y0} ${a.x1},${a.y1} ${a.x2},${a.y2}`);
+  else if(t==='text'){d.setAttribute('x',a.x);d.setAttribute('y',a.y)}
+  else d.setAttribute('d',PATHS[t](a));
+}
+const ease=p=>p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;
+const lerp=(a,b,p)=>a+(b-a)*p;
+const SCENES=ERAS.map(buildScene);
+let shown=new Set();
+function drawMix(A,B,p){
+  const keys=new Set([...A.m.keys(),...B.m.keys()]), now=new Set();
+  for(const k of keys){
+    const a=A.m.get(k), b=B.m.get(k), it=b||a;
+    let g,o;
+    if(a&&b&&a.t===b.t){const q=ease(p);g={};for(const x in b.a)g[x]=lerp(a.a[x]??b.a[x],b.a[x],q);
+      if(b.t==='skel'){g.h=p<.5?a.a.h:b.a.h;g.D=b.a.D}o=lerp(a.o,b.o,q)}
+    else if(b){g=b.a;o=b.o*ease(Math.max(0,(p-.45)/.55))}
+    else{g=a.a;o=a.o*(1-ease(Math.min(1,p/.5)))}
+    if(o<=.001)continue;
+    const d=el(k,it);
+    setStyle(d,(a&&b&&p<=.5)?a.st:it.st);
+    applyGeom(d,it.t,g);d.setAttribute('opacity',o.toFixed(3));d.style.display='';now.add(k);
+  }
+  for(const k of shown)if(!now.has(k)){const d=DOM.get(k);if(d)d.style.display='none'}
+  shown=now;
+}
+
+// ---------- stats ----------
+const $=id=>document.getElementById(id);
+function pct(a,b){const v=(a/b-1)*100;if(Math.abs(v)<.005)return '';return (v>0?'+':'−')+Math.abs(v).toFixed(Math.abs(v)<1?2:1)+'%'}
+
+// ---------- score line ----------
+const chart=$('chart'),CW=500,CH=120,cl=4,cr=4,ct=26,cb=24;
+const lmin=Math.log(36e6),lmax=Math.log(71.5e6);
+const cx=i=>cl+(CW-cl-cr)*i/(N-1), cy=s=>ct+(CH-ct-cb)*(1-(Math.log(s)-lmin)/(lmax-lmin));
+function mk(tag,at,txt){const d=document.createElementNS(NS,tag);for(const k in at)d.setAttribute(k,at[k]);if(txt)d.textContent=txt;chart.appendChild(d);return d}
+let dd='';ERAS.forEach((e,i)=>{dd+=i?`H${cx(i)}V${cy(e.score)}`:`M${cx(0)},${cy(e.score)}`});
+mk('path',{d:dd,fill:'none',stroke:'var(--rule)','stroke-width':2,'stroke-linejoin':'round'});
+const prog=mk('path',{d:'',fill:'none',stroke:INK,'stroke-width':2,'stroke-linejoin':'round'});
+const cur=mk('circle',{r:5,fill:ACC,stroke:'#fff','stroke-width':2});
+const curL=mk('text',{'font-size':13,fill:ACC,'font-weight':600});
+mk('text',{x:cx(0),y:CH-2,'font-size':13,fill:SOFT},day(ERAS[0]));
+mk('text',{x:cx(N-1),y:CH-2,'font-size':13,fill:SOFT,'text-anchor':'end'},day(ERAS[N-1]));
+mk('text',{x:cx(0),y:-14,'font-size':13,fill:SOFT},'Score over time');
+ERAS.forEach((e,i)=>{const h=mk('circle',{cx:cx(i),cy:cy(e.score),r:11,fill:'transparent',class:'hit'});h.onclick=()=>window.jump&&window.jump(i)});
+
+// ---------- panel ----------
+let lastText=-1;
+function panel(ia,ib,p){
+  const A=ERAS[ia],B=ERAS[ib],q=ease(p);
+  const tIdx=p>.4?ib:ia, op=ia===ib?1:(p>.4?Math.min(1,(p-.4)/.35):Math.max(0,1-p/.4));
+  const P=ERAS[Math.max(0,tIdx-1)], T=ERAS[tIdx];
+  if(tIdx!==lastText){
+    lastText=tIdx;
+    $('count').textContent=`Record ${tIdx+1} of ${N}`;
+    $('title').textContent=T.title;
+    $('desc').textContent=T.text;
+    $('who').textContent=`${T.author} · ${day(T)}`;
+  }
+  for(const id of ['count','title','desc','who','dS','dC','dX'])$(id).style.opacity=op;
+  const S=lerp(A.S,B.S,q),C=lerp(A.C,B.C,q);
+  $('vS').textContent=fmt(S)+' B';$('vC').textContent=fmt(C);
+  $('vX').textContent=(ia===ib||p>=1?B.score/1e6:S*C/1e6).toFixed(2)+'M';
+  $('dS').textContent=tIdx?pct(T.S,P.S):'';$('dC').textContent=tIdx?pct(T.C,P.C):'';$('dX').textContent=tIdx?pct(T.score,P.score):'';
+  // score line
+  const fi=lerp(ia,ib,q), xs=cx(fi);
+  let d=`M${cx(0)},${cy(ERAS[0].score)}`;
+  for(let i=1;i<=ia;i++)d+=`H${cx(i)}V${cy(ERAS[i].score)}`;
+  const k=Math.max(0,(q-.6)/.4), ys=ib>ia?lerp(cy(A.score),cy(B.score),k):cy(B.score);
+  if(ib>ia)d+=`H${xs}V${ys}`;
+  prog.setAttribute('d',d);
+  cur.setAttribute('cx',xs);cur.setAttribute('cy',ys);
+  const sv=ib>ia?Math.exp(lerp(Math.log(A.score),Math.log(B.score),k)):B.score;
+  const nearEnd=xs>CW-70;curL.setAttribute('text-anchor',nearEnd?'end':'start');
+  curL.setAttribute('x',nearEnd?xs-10:xs+10);curL.setAttribute('y',fi<1?ys+22:ys-10);curL.textContent=(sv/1e6).toFixed(1)+'M';
+}
+
+// ---------- timeline ----------
+function renderAt(T){
+  T=Math.max(0,Math.min(TOTAL,T));
+  const u=T-START;
+  let ia,ib,p;
+  const k=Math.floor((u+TRANS)/PERIOD);
+  if(u<0||k<=0){ia=ib=0;p=1}
+  else if(k>=N){ia=ib=N-1;p=1}
+  else{const s=k*PERIOD-TRANS;p=(u-s)/TRANS;if(p>=1){ia=ib=k;p=1}else{ia=k-1;ib=k}}
+  drawMix(SCENES[ia],SCENES[ib],ia===ib?1:p);
+  panel(ia,ib,ia===ib?1:p);
+}
+window.renderAt=renderAt;window.TOTAL=TOTAL;
+
+const fit=()=>{const s=Math.min(innerWidth/1600,innerHeight/900),f=$('fit');
+  f.style.transform=`translate(${(innerWidth-1600*s)/2}px,${(innerHeight-900*s)/2}px) scale(${s})`};
+if(new URLSearchParams(location.search).has('cap')){document.body.classList.add('cap');renderAt(0)}
+else{
+  const PAUSE='<svg viewBox="0 0 14 14"><path d="M4.5 2.5v9M9.5 2.5v9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const PLAY='<svg viewBox="0 0 14 14"><path d="M4 2.2v9.6L11.5 7z" fill="currentColor"/></svg>';
+  let T=0,playing=true,last=null;
+  const frame=ts=>{if(last!==null&&playing){T+=ts-last;if(T>TOTAL)T=0}last=ts;renderAt(T);requestAnimationFrame(frame)};
+  requestAnimationFrame(frame);
+  const curEra=()=>Math.max(0,Math.min(N-1,Math.floor((T-START+TRANS)/PERIOD)));
+  window.jump=i=>{i=Math.max(0,Math.min(N-1,i));T=i?START+i*PERIOD:0};
+  const setBtn=()=>{$('bplay').innerHTML=playing?PAUSE:PLAY;$('bplay').setAttribute('aria-label',playing?'Pause':'Play')};
+  const tog=()=>{playing=!playing;setBtn()};setBtn();
+  $('bplay').onclick=tog;$('bprev').onclick=()=>jump(curEra()-1);$('bnext').onclick=()=>jump(curEra()+1);
+  addEventListener('keydown',ev=>{if(ev.key===' '){ev.preventDefault();tog()}
+    if(ev.key==='ArrowRight')jump(curEra()+1);if(ev.key==='ArrowLeft')jump(curEra()-1)});
+  addEventListener('resize',fit);fit();
+}
+</script>
+</body>
+</html>
