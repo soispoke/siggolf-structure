@@ -106,6 +106,7 @@ const COPY=[
   ['Top tree, reordered','The top tree gets the same treatment. Verify cost drops to 6,997.'],
   ['A smaller top window','The top tree’s witness window shrinks by 96 bytes, which saves one cycle.'],
   ['Paired chain blocks','Odd and even chains of the lower keys share witness blocks. The witness shrinks by 1.7 KB and the check gets 6 cycles cheaper.'],
+  ['Two halves to choose from','Each try now offers two candidates for the top key, so the signer can aim for a cheaper check: 9 cycles saved. Tighter accounting on the lower layers saves 6 more.'],
 ];
 ERAS.forEach((e,i)=>{e.title=COPY[i][0];e.text=COPY[i][1]});
 
