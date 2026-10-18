@@ -9,7 +9,7 @@
 :root{
   color-scheme:light;
   --ink:#1d1d1f; --muted:#6e6e73; --soft:#86868b; --rule:#e8e8ed; --tree:#d2d2d7; --grid:#e3e3e8; --wash:#f5f5f7;
-  --accent:#0071e3;
+  --accent:#0a84ff;
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
 }
 *{box-sizing:border-box}
@@ -43,6 +43,9 @@ svg text{font-family:var(--sans)}
 #ctrl button:hover{background:var(--rule)}
 #ctrl svg{width:14px;height:14px}
 body.cap #ctrl{display:none}
+#how{position:absolute;right:88px;top:72px;font-size:15px;color:var(--accent);text-decoration:none}
+#how:hover{text-decoration:underline}
+body.cap #how{display:none}
 </style>
 </head>
 <body>
@@ -61,6 +64,7 @@ body.cap #ctrl{display:none}
   </div>
   <div id="tl"><svg id="chart" width="500" height="120"></svg></div>
   <svg id="diagram" viewBox="0 0 940 712"></svg>
+  <a id="how" href="how-it-works.html">How these signatures work ›</a>
   <div id="ctrl">
     <button id="bprev" aria-label="Previous"><svg viewBox="0 0 14 14"><path d="M9 2 4 7l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button id="bplay" aria-label="Pause"></button>
